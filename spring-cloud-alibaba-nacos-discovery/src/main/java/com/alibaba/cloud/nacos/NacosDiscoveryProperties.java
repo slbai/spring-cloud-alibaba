@@ -57,6 +57,7 @@ import com.alibaba.nacos.client.naming.utils.UtilAndComs;
  * @author dungu.zpf
  * @author xiaojing
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
+ * @author <a href="mailto:lyuzb@lyuzb.com">lyuzb</a>
  */
 
 @ConfigurationProperties("spring.cloud.nacos.discovery")
@@ -103,9 +104,14 @@ public class NacosDiscoveryProperties {
 	private float weight = 1;
 
 	/**
-	 * cluster name for nacos server.
+	 * cluster name for nacos .
 	 */
 	private String clusterName = "DEFAULT";
+
+	/**
+	 * group name for nacos
+	 */
+	private String group = "DEFAULT_GROUP";
 
 	/**
 	 * naming load from local cache at application start. true is load.
@@ -189,7 +195,7 @@ public class NacosDiscoveryProperties {
 		}
 
 		serverAddr = Objects.toString(serverAddr, "");
-		if (serverAddr.lastIndexOf("/") != -1) {
+		if (serverAddr.endsWith("/")) {
 			serverAddr = serverAddr.substring(0, serverAddr.length() - 1);
 		}
 		endpoint = Objects.toString(endpoint, "");
@@ -394,25 +400,39 @@ public class NacosDiscoveryProperties {
 		this.watchDelay = watchDelay;
 	}
 
+	public String getGroup() {
+		return group;
+	}
+
+	public void setGroup(String group) {
+		this.group = group;
+	}
+
 	@Override
 	public String toString() {
 		return "NacosDiscoveryProperties{" + "serverAddr='" + serverAddr + '\''
 				+ ", endpoint='" + endpoint + '\'' + ", namespace='" + namespace + '\''
 				+ ", watchDelay=" + watchDelay + ", logName='" + logName + '\''
 				+ ", service='" + service + '\'' + ", weight=" + weight
-				+ ", clusterName='" + clusterName + '\'' + ", namingLoadCacheAtStart='"
-				+ namingLoadCacheAtStart + '\'' + ", metadata=" + metadata
-				+ ", registerEnabled=" + registerEnabled + ", ip='" + ip + '\''
-				+ ", networkInterface='" + networkInterface + '\'' + ", port=" + port
-				+ ", secure=" + secure + ", accessKey='" + accessKey + '\''
-				+ ", secretKey='" + secretKey + '\'' + '}';
+				+ ", clusterName='" + clusterName + '\'' + ", group='" + group + '\''
+				+ ", namingLoadCacheAtStart='" + namingLoadCacheAtStart + '\''
+				+ ", metadata=" + metadata + ", registerEnabled=" + registerEnabled
+				+ ", ip='" + ip + '\'' + ", networkInterface='" + networkInterface + '\''
+				+ ", port=" + port + ", secure=" + secure + ", accessKey='" + accessKey
+				+ '\'' + ", secretKey='" + secretKey + '\'' + ", heartBeatInterval="
+				+ heartBeatInterval + ", heartBeatTimeout=" + heartBeatTimeout
+				+ ", ipDeleteTimeout=" + ipDeleteTimeout + '}';
 	}
 
 	public void overrideFromEnv(Environment env) {
 
 		if (StringUtils.isEmpty(this.getServerAddr())) {
-			this.setServerAddr(env
-					.resolvePlaceholders("${spring.cloud.nacos.discovery.server-addr:}"));
+			String serverAddr = env
+					.resolvePlaceholders("${spring.cloud.nacos.discovery.server-addr:}");
+			if (StringUtils.isEmpty(serverAddr)) {
+				serverAddr = env.resolvePlaceholders("${spring.cloud.nacos.server-addr}");
+			}
+			this.setServerAddr(serverAddr);
 		}
 		if (StringUtils.isEmpty(this.getNamespace())) {
 			this.setNamespace(env
@@ -438,8 +458,13 @@ public class NacosDiscoveryProperties {
 			this.setEndpoint(
 					env.resolvePlaceholders("${spring.cloud.nacos.discovery.endpoint:}"));
 		}
+		if (StringUtils.isEmpty(this.getGroup())) {
+			this.setGroup(
+					env.resolvePlaceholders("${spring.cloud.nacos.discovery.group:}"));
+		}
 	}
 
+	@Deprecated
 	public NamingService namingServiceInstance() {
 
 		if (null != namingService) {
@@ -456,6 +481,7 @@ public class NacosDiscoveryProperties {
 		return namingService;
 	}
 
+	@Deprecated
 	public NamingMaintainService namingMaintainServiceInstance() {
 
 		if (null != namingMaintainService) {

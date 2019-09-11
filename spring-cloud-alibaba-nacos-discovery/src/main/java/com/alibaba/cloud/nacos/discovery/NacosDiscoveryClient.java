@@ -16,21 +16,21 @@
 
 package com.alibaba.cloud.nacos.discovery;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import com.alibaba.cloud.nacos.NacosDiscoveryProperties;
+import com.alibaba.cloud.nacos.NacosNamingManager;
+import com.alibaba.cloud.nacos.NacosServiceInstance;
+import com.alibaba.nacos.api.naming.pojo.Instance;
+import com.alibaba.nacos.api.naming.pojo.ListView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 
-import com.alibaba.cloud.nacos.NacosDiscoveryProperties;
-import com.alibaba.cloud.nacos.NacosServiceInstance;
-import com.alibaba.nacos.api.naming.pojo.Instance;
-import com.alibaba.nacos.api.naming.pojo.ListView;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author xiaojing
@@ -41,9 +41,12 @@ public class NacosDiscoveryClient implements DiscoveryClient {
 	private static final Logger log = LoggerFactory.getLogger(NacosDiscoveryClient.class);
 	public static final String DESCRIPTION = "Spring Cloud Nacos Discovery Client";
 
+	private NacosNamingManager nacosNamingManager;
 	private NacosDiscoveryProperties discoveryProperties;
 
-	public NacosDiscoveryClient(NacosDiscoveryProperties discoveryProperties) {
+	public NacosDiscoveryClient(NacosNamingManager nacosNamingManager,
+			NacosDiscoveryProperties discoveryProperties) {
+		this.nacosNamingManager = nacosNamingManager;
 		this.discoveryProperties = discoveryProperties;
 	}
 
@@ -55,8 +58,9 @@ public class NacosDiscoveryClient implements DiscoveryClient {
 	@Override
 	public List<ServiceInstance> getInstances(String serviceId) {
 		try {
-			List<Instance> instances = discoveryProperties.namingServiceInstance()
-					.selectInstances(serviceId, true);
+			String group = discoveryProperties.getGroup();
+			List<Instance> instances = nacosNamingManager.getNamingService()
+					.selectInstances(serviceId, group, true);
 			return hostToServiceInstanceList(instances, serviceId);
 		}
 		catch (Exception e) {
@@ -65,8 +69,11 @@ public class NacosDiscoveryClient implements DiscoveryClient {
 		}
 	}
 
-	private static ServiceInstance hostToServiceInstance(Instance instance,
+	public static ServiceInstance hostToServiceInstance(Instance instance,
 			String serviceId) {
+		if (instance == null || !instance.isEnabled() || !instance.isHealthy()) {
+			return null;
+		}
 		NacosServiceInstance nacosServiceInstance = new NacosServiceInstance();
 		nacosServiceInstance.setHost(instance.getIp());
 		nacosServiceInstance.setPort(instance.getPort());
@@ -87,11 +94,14 @@ public class NacosDiscoveryClient implements DiscoveryClient {
 		return nacosServiceInstance;
 	}
 
-	private static List<ServiceInstance> hostToServiceInstanceList(
+	public static List<ServiceInstance> hostToServiceInstanceList(
 			List<Instance> instances, String serviceId) {
 		List<ServiceInstance> result = new ArrayList<>(instances.size());
 		for (Instance instance : instances) {
-			result.add(hostToServiceInstance(instance, serviceId));
+			ServiceInstance serviceInstance = hostToServiceInstance(instance, serviceId);
+			if (serviceInstance != null) {
+				result.add(serviceInstance);
+			}
 		}
 		return result;
 	}
@@ -100,8 +110,9 @@ public class NacosDiscoveryClient implements DiscoveryClient {
 	public List<String> getServices() {
 
 		try {
-			ListView<String> services = discoveryProperties.namingServiceInstance()
-					.getServicesOfServer(1, Integer.MAX_VALUE);
+			String group = discoveryProperties.getGroup();
+			ListView<String> services = nacosNamingManager.getNamingService()
+					.getServicesOfServer(1, Integer.MAX_VALUE, group);
 			return services.getData();
 		}
 		catch (Exception e) {

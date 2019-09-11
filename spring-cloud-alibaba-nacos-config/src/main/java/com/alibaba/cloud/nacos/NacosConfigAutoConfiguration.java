@@ -41,8 +41,12 @@ public class NacosConfigAutoConfiguration {
 			return BeanFactoryUtils.beanOfTypeIncludingAncestors(context.getParent(),
 					NacosConfigProperties.class);
 		}
-		NacosConfigProperties nacosConfigProperties = new NacosConfigProperties();
-		return nacosConfigProperties;
+		return new NacosConfigProperties();
+	}
+
+	@Bean
+	public NacosConfigManager nacosConfigManager() {
+		return new NacosConfigManager();
 	}
 
 	@Bean
@@ -57,10 +61,10 @@ public class NacosConfigAutoConfiguration {
 
 	@Bean
 	public NacosContextRefresher nacosContextRefresher(
-			NacosConfigProperties nacosConfigProperties,
+			NacosConfigManager nacosConfigManager,
 			NacosRefreshProperties nacosRefreshProperties,
 			NacosRefreshHistory refreshHistory) {
 		return new NacosContextRefresher(nacosRefreshProperties, refreshHistory,
-				nacosConfigProperties.configServiceInstance());
+				nacosConfigManager.getConfigService());
 	}
 }
